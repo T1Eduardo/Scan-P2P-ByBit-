@@ -19,17 +19,14 @@ MONEDA_FIAT = "COP"           # Moneda local en pesos colombianos
 PRECIO_MAX_COMPRA = 3900.0    # Alerta si hay oferta a $3,900 COP o menos
 INTERVALO_SEGUNDOS = 60       # Frecuencia de consulta en segundos
 
-
 def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
-    """Consulta la API de Mercado Pública de Bybit para el listado P2P."""
-    # 🔥 NUEVO ENDPOINT: Este es el oficial para consultas externas públicas
+    """Consulta la API de Mercado Pública de Bybit de forma segura y sin bloqueos."""
     url = "https://bybit.com"
     
-    # El payload requiere los nombres de variables exactos de la API pública
     payload = {
         "tokenId": tokenId,
         "currencyId": currencyId,
-        "side": "0",       # En la API pública, "0" o "SELL" suele filtrar anunciantes de venta para que tú compres
+        "side": "0",  # 0 para buscar anunciantes de venta
         "page": "1",
         "size": "10"
     }
@@ -40,44 +37,44 @@ def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
     }
 
     try:
+        # Forzamos que el print se envíe al log inmediatamente con flush=True
+        print("📡 [DEBUG] Iniciando petición HTTP a Bybit...", flush=True)
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        print(f"📡 [DEBUG PÚBLICO] Código HTTP API: {response.status_code}")
+        print(f"📡 [DEBUG] Código HTTP recibido: {response.status_code}", flush=True)
         
-        try:
-            data = response.json()
-        except ValueError:
-            print("❌ La API pública no devolvió un JSON estructurado.")
+        if response.status_code != 200:
             return None, None, None, None
-            
-        # 🔥 NUEVO PRINT DE DIAGNÓSTICO: Vamos a ver la estructura exacta que nos da Bybit
-        print(f"📦 [DEBUG PÚBLICO] Respuesta Completa de Bybit: {data}")
+
+        data = response.json()
+        print(f"📦 [DEBUG] Respuesta JSON cruda de Bybit: {data}", flush=True)
         
         if data.get("retCode") == 0:
             result_data = data.get("result", {})
-            items = result_data.get("items", []) if isinstance(result_data, dict) else []
+            items = result_data.get("items", [])
             
-            print(f"📊 [DEBUG PÚBLICO] Cantidad de ítems encontrados: {len(items)}")
-            
-            if items:
+            # Validamos estrictamente que la lista no esté vacía antes de usar el índice [0]
+            if isinstance(items, list) and len(items) > 0:
                 mejor_oferta = items[0]
                 
-                # Intentamos extraer con múltiples variantes comunes de la API de Bybit
-                precio = float(mejor_oferta.get("price") or mejor_oferta.get("price") or 0)
-                vendedor = mejor_oferta.get("nickName") or mejor_oferta.get("userName") or mejor_oferta.get("name") or "Comerciante"
-                min_monto = mejor_oferta.get("minAmount") or mejor_oferta.get("minAmt") or "N/A"
-                max_monto = mejor_oferta.get("maxAmount") or mejor_oferta.get("maxAmt") or "N/A"
+                precio = float(mejor_oferta.get("price")) if mejor_oferta.get("price") else None
+                vendedor = mejor_oferta.get("nickName") or mejor_oferta.get("userName") or "Comerciante"
+                min_monto = mejor_oferta.get("minAmount") or "N/A"
+                max_monto = mejor_oferta.get("maxAmount") or "N/A"
                 
+                print(f"✅ [DEBUG] Extracción exitosa -> Vendedor: {vendedor}, Precio: {precio}", flush=True)
                 return precio, vendedor, min_monto, max_monto
             else:
-                print("ℹ️ La lista de 'items' llegó vacía desde la API pública.")
+                print("⚠️ [DEBUG] La lista 'items' llegó vacía desde la API de Bybit.", flush=True)
         else:
-            print(f"⚠️ Error reportado por Bybit: {data.get('retMsg')}")
+            print(f"❌ [DEBUG] Bybit retornó error: {data.get('retMsg')}", flush=True)
             
     except Exception as e:
-        print(f"❌ Error consultando endpoint público: {e}")
+        print(f"💥 [DEBUG] Fallo crítico dentro de obtener_mejor_precio: {e}", flush=True)
         
     return None, None, None, None
+
+
 # ==============================================================================
 # COMANDOS DE TELEGRAM
 # ==============================================================================
