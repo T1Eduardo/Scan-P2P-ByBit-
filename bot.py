@@ -45,7 +45,7 @@ def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
         print(f"Error consultando API P2P Bybit: {e}")
         
     return None, None, None, None
-  # ==============================================================================
+# ==============================================================================
 # COMANDOS DE TELEGRAM
 # ==============================================================================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -109,7 +109,7 @@ async def cmd_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = "❌ No se pudo obtener respuesta del mercado P2P de Bybit en este momento."
         
     await update.message.reply_text(msg, parse_mode="Markdown")
-  # ==============================================================================
+# ==============================================================================
 # RASTREO EN SEGUNDO PLANO Y EJECUCIÓN
 # ==============================================================================
 async def tarea_rastreo_p2p(app: Application):
