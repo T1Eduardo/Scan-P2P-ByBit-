@@ -1,8 +1,11 @@
 import os
+import threading
 import asyncio
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+
 
 # ==============================================================================
 # CONFIGURACIÓN INICIAL P2P
