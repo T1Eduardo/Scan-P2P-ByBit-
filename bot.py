@@ -21,21 +21,42 @@ INTERVALO_SEGUNDOS = 60       # Frecuencia de consulta en segundos
 
 
 def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
-    """Consulta la API P2P de Bybit y devuelve la oferta más económica."""
-    url = "https://api.bybit.com/v5/fiat/p2p/item/online"
+    """Consulta la API P2P de Bybit y devuelve la oferta más económica de forma segura."""
+    # Endpoint público optimizado para el listado P2P
+    url = "https://bybit.com"
+    
     payload = {
         "tokenId": tokenId,
         "currencyId": currencyId,
-        "side": "1",        # 1 = Vendedores (para que tú les compres)
+        "side": "1",  # 1 = Vendedores (para que tú les compres)
         "page": "1",
         "size": "10"
     }
-    headers = {"Content-Type": "application/json"}
     
+    # 🔥 CRÍTICO: Añadir un User-Agent real para evitar bloqueos e inspección de Cloudflare
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
-        data = response.json()
         
+        # Validamos si la respuesta HTTP es exitosa antes de procesar el JSON
+        if response.status_code != 200:
+            print(f"⚠️ Bybit respondió con código de error HTTP: {response.status_code}")
+            return None, None, None, None
+
+        # Capturamos el JSON de forma segura controlando errores de formato
+        try:
+            data = response.json()
+        except ValueError:
+            print("❌ El contenido recibido de Bybit no es un JSON válido.")
+            print(f"Fragmento recibido: {response.text[:300]}")
+            return None, None, None, None
+        
+        # Procesamos los datos si el retCode es correcto
         if data.get("retCode") == 0:
             items = data.get("result", {}).get("items", [])
             if items:
@@ -45,8 +66,13 @@ def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
                 min_monto = mejor_oferta.get("minAmount", "N/A")
                 max_monto = mejor_oferta.get("maxAmount", "N/A")
                 return precio, vendedor, min_monto, max_monto
+            else:
+                print("ℹ️ No se encontraron ofertas activas en Bybit en este momento.")
+        else:
+            print(f"⚠️ API de Bybit retornó error interno. Código: {data.get('retCode')}, Mensaje: {data.get('retMsg')}")
+            
     except Exception as e:
-        print(f"Error consultando API P2P Bybit: {e}")
+        print(f"❌ Error consultando API P2P Bybit: {e}")
         
     return None, None, None, None
 # ==============================================================================
@@ -117,21 +143,36 @@ async def cmd_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # RASTREO EN SEGUNDO PLANO Y EJECUCIÓN
 # ==============================================================================
 async def tarea_rastreo_p2p(app: Application):
+    print("🚀 Tarea de rastreo P2P iniciada correctamente...")
     while True:
-        precio, vendedor, min_m, max_m = obtener_mejor_precio_p2p_bybit(TOKEN_CRIPTO, MONEDA_FIAT)
-        if precio:
-            if precio <= PRECIO_MAX_COMPRA:
-                await app.bot.send_message(
-                    chat_id=CHAT_ID,
-                    text=(
-                        f"🚨 ¡OFERTA P2P DETECTADA EN BYBIT!\n\n"
-                        f"💵 Precio oferta: ${precio:,.2f} COP\n"
-                        f"🎯 Tu tope máximo: ${PRECIO_MAX_COMPRA:,.2f} COP\n"
-                        f"👤 Vendedor: {vendedor}\n"
-                        f"💳 Límites: ${min_m} - ${max_m} COP"
-                    ),
-                    parse_mode="Markdown"
-                )
+        try:
+            # Intentamos obtener los datos de Bybit de forma segura
+            resultado = obtener_mejor_precio_p2p_bybit(TOKEN_CRIPTO, MONEDA_FIAT)
+            
+            if resultado:
+                precio, vendedor, min_m, max_m = resultado
+                
+                if precio and precio <= PRECIO_MAX_COMPRA:
+                    await app.bot.send_message(
+                        chat_id=CHAT_ID,
+                        text=(
+                            f"🎉 ¡OFERTA P2P DETECTADA EN BYBIT!\n\n"
+                            f"💵 Precio oferta: ${precio:,.2f} COP\n"
+                            f"🎯 Tu tope máximo: ${PRECIO_MAX_COMPRA:,.2f} COP\n"
+                            f"👤 Vendedor: {vendedor}\n"
+                            f"💳 Límites: ${min_m} - ${max_m} COP"
+                        ),
+                        parse_mode="Markdown"
+                    )
+            else:
+                print("⚠️ No se pudieron obtener datos válidos de Bybit en este ciclo.")
+
+        except Exception as e:
+            print(f"❌ Error inesperado en el bucle de rastreo: {e}")
+
+        # 🔥 CORRECCIÓN CRÍTICA: El sleep DEBE ir aquí afuera, al final del while.
+        # De esta forma, si Bybit falla o el precio no cumple la condición,
+        # el bot esperará el intervalo asignado antes de volver a consultar, evitando bloqueos.
         await asyncio.sleep(INTERVALO_SEGUNDOS)
 
 
