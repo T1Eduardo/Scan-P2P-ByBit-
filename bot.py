@@ -40,34 +40,39 @@ def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
     }
 
     try:
-        # Hacemos la consulta por GET o POST según requiera el endpoint público (Bybit v5 Market soporta GET/POST)
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        print(f"📡 [DEBUG] Código HTTP API Pública: {response.status_code}")
+        print(f"📡 [DEBUG PÚBLICO] Código HTTP API: {response.status_code}")
         
         try:
             data = response.json()
         except ValueError:
-            print("❌ La API pública tampoco devolvió un JSON estructurado.")
+            print("❌ La API pública no devolvió un JSON estructurado.")
             return None, None, None, None
             
+        # 🔥 NUEVO PRINT DE DIAGNÓSTICO: Vamos a ver la estructura exacta que nos da Bybit
+        print(f"📦 [DEBUG PÚBLICO] Respuesta Completa de Bybit: {data}")
+        
         if data.get("retCode") == 0:
             result_data = data.get("result", {})
-            items = result_data.get("items", [])
+            items = result_data.get("items", []) if isinstance(result_data, dict) else []
+            
+            print(f"📊 [DEBUG PÚBLICO] Cantidad de ítems encontrados: {len(items)}")
             
             if items:
                 mejor_oferta = items[0]
                 
-                precio = float(mejor_oferta.get("price")) if mejor_oferta.get("price") else None
-                vendedor = mejor_oferta.get("nickName") or mejor_oferta.get("userName") or "Comerciante"
-                min_monto = mejor_oferta.get("minAmount") or "N/A"
-                max_monto = mejor_oferta.get("maxAmount") or "N/A"
+                # Intentamos extraer con múltiples variantes comunes de la API de Bybit
+                precio = float(mejor_oferta.get("price") or mejor_oferta.get("price") or 0)
+                vendedor = mejor_oferta.get("nickName") or mejor_oferta.get("userName") or mejor_oferta.get("name") or "Comerciante"
+                min_monto = mejor_oferta.get("minAmount") or mejor_oferta.get("minAmt") or "N/A"
+                max_monto = mejor_oferta.get("maxAmount") or mejor_oferta.get("maxAmt") or "N/A"
                 
                 return precio, vendedor, min_monto, max_monto
             else:
-                print("ℹ️ No se encontraron ítems en la respuesta pública.")
+                print("ℹ️ La lista de 'items' llegó vacía desde la API pública.")
         else:
-            print(f"⚠️ Error de la API de Bybit: {data.get('retMsg')}")
+            print(f"⚠️ Error reportado por Bybit: {data.get('retMsg')}")
             
     except Exception as e:
         print(f"❌ Error consultando endpoint público: {e}")
