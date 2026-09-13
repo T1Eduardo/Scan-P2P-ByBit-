@@ -138,16 +138,18 @@ async def tarea_rastreo_p2p(app: Application):
 async def post_init(app: Application):
     asyncio.create_task(tarea_rastreo_p2p(app))
 
+# --- Servidor Flask ligero para pasar el chequeo de Render ---
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "Bot Online", 200
+
 # --- 1. CONFIGURACIÓN DEL SERVIDOR WEB PARA ENGAÑAR A RENDER ---
 def run_dummy_server():
-    # Render asigna automáticamente un puerto en la variable de entorno 'PORT'
     port = int(os.environ.get("PORT", 8000))
-    server_address = ("", port)
-    
-    # Levanta un servidor web ultra-ligero nativo de Python
-    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
-    print(f"🌍 Servidor web secundario activo en el puerto {port} para pasar el chequeo de Render.")
-    httpd.serve_forever()
+    # Ejecuta Flask de forma silenciosa
+    flask_app.run(host="0.0.0.0", port=port)
 
 
 def main():
@@ -155,23 +157,18 @@ def main():
         print("ERROR: Faltan las variables TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.")
         return
 
-    # Mantiene tu inicialización original con post_init
     app = Application.builder().token(TOKEN).post_init(post_init).build()
 
-    # Tus comandos permanecen intactos
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("compra", cmd_set_compra))
     app.add_handler(CommandHandler("intervalo", cmd_set_intervalo))
     app.add_handler(CommandHandler("estado", cmd_estado))
 
-    # 🔥 NUEVO: Arranca el servidor web falso en segundo plano antes de ejecutar el bot
+    # Arranca el servidor Flask en segundo plano antes de ejecutar el bot
     threading.Thread(target=run_dummy_server, daemon=True).start()
 
     print("Bot P2P USDT/COP en marcha...")
-    
-    # Corre el bot en modo polling normalmente
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
