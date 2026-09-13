@@ -43,39 +43,56 @@ def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        # Validamos si la respuesta HTTP es exitosa antes de procesar el JSON
+        # 1️⃣ DIAGNÓSTICO: Confirmar el código de estado HTTP recibido
+        print(f"📡 [DEBUG BYBIT] Código HTTP Recibido: {response.status_code}")
+        
         if response.status_code != 200:
-            print(f"⚠️ Bybit respondió con código de error HTTP: {response.status_code}")
+            print(f"⚠️ Error de red. Cuerpo: {response.text[:300]}")
             return None, None, None, None
 
-        # Capturamos el JSON de forma segura controlando errores de formato
+        # 2️⃣ DIAGNÓSTICO: Imprimir el JSON crudo que entrega Bybit antes de convertirlo
+        print(f"📦 [DEBUG BYBIT] JSON en texto crudo: {response.text}")
+
         try:
             data = response.json()
         except ValueError:
-            print("❌ El contenido recibido de Bybit no es un JSON válido.")
-            print(f"Fragmento recibido: {response.text[:300]}")
+            print("❌ Error: La respuesta no tiene estructura JSON procesable.")
             return None, None, None, None
         
-        # Procesamos los datos si el retCode es correcto
+        # Procesamos si Bybit retorna éxito
         if data.get("retCode") == 0:
-            items = data.get("result", {}).get("items", [])
+            result_data = data.get("result", {})
+            items = result_data.get("items", []) if isinstance(result_data, dict) else []
+            
+            # 3️⃣ DIAGNÓSTICO: Saber cuántos oferentes llegaron en la lista
+            print(f"📊 [DEBUG BYBIT] Cantidad de oferentes encontrados: {len(items)}")
+            
             if items:
-                # 🔥 CORRECCIÓN: Extraer la primera oferta usando [0]
-                mejor_oferta = items[0] 
+                mejor_oferta = items[0]
                 
-                precio = float(mejor_oferta.get("price"))
-                vendedor = mejor_oferta.get("nickName", "Anónimo")
-                min_monto = mejor_oferta.get("minAmount", "N/A")
-                max_monto = mejor_oferta.get("maxAmount", "N/A")
-                return precio, seller, min_monto, max_monto
+                # 4️⃣ DIAGNÓSTICO: Ver el diccionario completo del primer oferente
+                print(f"👤 [DEBUG BYBIT] Datos del primer oferente: {mejor_oferta}")
+                
+                precio = float(mejor_oferta.get("price")) if mejor_oferta.get("price") else None
+                
+                vendedor = (
+                    mejor_oferta.get("nickName") or 
+                    mejor_oferta.get("userName") or 
+                    mejor_oferta.get("userId") or 
+                    "Desconocido"
+                )
+                
+                min_monto = mejor_oferta.get("minAmount") or "N/A"
+                max_monto = mejor_oferta.get("maxAmount") or "N/A"
+                
+                return precio, vendedor, min_monto, max_monto
             else:
-                print("ℹ️ No se encontraron ofertas activas en Bybit en este momento.")
-
+                print("ℹ️ Lista de 'items' vacía en la respuesta.")
         else:
-            print(f"⚠️ API de Bybit retornó error interno. Código: {data.get('retCode')}, Mensaje: {data.get('retMsg')}")
+            print(f"⚠️ Código de error Bybit: {data.get('retCode')} - {data.get('retMsg')}")
             
     except Exception as e:
-        print(f"❌ Error consultando API P2P Bybit: {e}")
+        print(f"❌ Excepción en la consulta: {e}")
         
     return None, None, None, None
 # ==============================================================================
