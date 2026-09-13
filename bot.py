@@ -60,14 +60,17 @@ def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
         if data.get("retCode") == 0:
             items = data.get("result", {}).get("items", [])
             if items:
-                mejor_oferta = items[0]
+                # 🔥 CORRECCIÓN: Extraer la primera oferta usando [0]
+                mejor_oferta = items[0] 
+                
                 precio = float(mejor_oferta.get("price"))
                 vendedor = mejor_oferta.get("nickName", "Anónimo")
                 min_monto = mejor_oferta.get("minAmount", "N/A")
                 max_monto = mejor_oferta.get("maxAmount", "N/A")
-                return precio, vendedor, min_monto, max_monto
+                return precio, seller, min_monto, max_monto
             else:
                 print("ℹ️ No se encontraron ofertas activas en Bybit en este momento.")
+
         else:
             print(f"⚠️ API de Bybit retornó error interno. Código: {data.get('retCode')}, Mensaje: {data.get('retMsg')}")
             
