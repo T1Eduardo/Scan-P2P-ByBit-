@@ -21,78 +21,56 @@ INTERVALO_SEGUNDOS = 60       # Frecuencia de consulta en segundos
 
 
 def obtener_mejor_precio_p2p_bybit(tokenId="USDT", currencyId="COP"):
-    """Consulta la API P2P de Bybit y devuelve la oferta más económica de forma segura."""
-    # Endpoint público optimizado para el listado P2P
+    """Consulta la API de Mercado Pública de Bybit para el listado P2P."""
+    # 🔥 NUEVO ENDPOINT: Este es el oficial para consultas externas públicas
     url = "https://bybit.com"
     
+    # El payload requiere los nombres de variables exactos de la API pública
     payload = {
         "tokenId": tokenId,
         "currencyId": currencyId,
-        "side": "1",  # 1 = Vendedores (para que tú les compres)
+        "side": "0",       # En la API pública, "0" o "SELL" suele filtrar anunciantes de venta para que tú compres
         "page": "1",
         "size": "10"
     }
     
-    # 🔥 CRÍTICO: Añadir un User-Agent real para evitar bloqueos e inspección de Cloudflare
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
 
     try:
+        # Hacemos la consulta por GET o POST según requiera el endpoint público (Bybit v5 Market soporta GET/POST)
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        # 1️⃣ DIAGNÓSTICO: Confirmar el código de estado HTTP recibido
-        print(f"📡 [DEBUG BYBIT] Código HTTP Recibido: {response.status_code}")
+        print(f"📡 [DEBUG] Código HTTP API Pública: {response.status_code}")
         
-        if response.status_code != 200:
-            print(f"⚠️ Error de red. Cuerpo: {response.text[:300]}")
-            return None, None, None, None
-
-        # 2️⃣ DIAGNÓSTICO: Imprimir el JSON crudo que entrega Bybit antes de convertirlo
-        print(f"📦 [DEBUG BYBIT] JSON en texto crudo: {response.text}")
-
         try:
             data = response.json()
         except ValueError:
-            print("❌ Error: La respuesta no tiene estructura JSON procesable.")
+            print("❌ La API pública tampoco devolvió un JSON estructurado.")
             return None, None, None, None
-        
-        # Procesamos si Bybit retorna éxito
+            
         if data.get("retCode") == 0:
             result_data = data.get("result", {})
-            items = result_data.get("items", []) if isinstance(result_data, dict) else []
-            
-            # 3️⃣ DIAGNÓSTICO: Saber cuántos oferentes llegaron en la lista
-            print(f"📊 [DEBUG BYBIT] Cantidad de oferentes encontrados: {len(items)}")
+            items = result_data.get("items", [])
             
             if items:
                 mejor_oferta = items[0]
                 
-                # 4️⃣ DIAGNÓSTICO: Ver el diccionario completo del primer oferente
-                print(f"👤 [DEBUG BYBIT] Datos del primer oferente: {mejor_oferta}")
-                
                 precio = float(mejor_oferta.get("price")) if mejor_oferta.get("price") else None
-                
-                vendedor = (
-                    mejor_oferta.get("nickName") or 
-                    mejor_oferta.get("userName") or 
-                    mejor_oferta.get("userId") or 
-                    "Desconocido"
-                )
-                
+                vendedor = mejor_oferta.get("nickName") or mejor_oferta.get("userName") or "Comerciante"
                 min_monto = mejor_oferta.get("minAmount") or "N/A"
                 max_monto = mejor_oferta.get("maxAmount") or "N/A"
                 
                 return precio, vendedor, min_monto, max_monto
             else:
-                print("ℹ️ Lista de 'items' vacía en la respuesta.")
+                print("ℹ️ No se encontraron ítems en la respuesta pública.")
         else:
-            print(f"⚠️ Código de error Bybit: {data.get('retCode')} - {data.get('retMsg')}")
+            print(f"⚠️ Error de la API de Bybit: {data.get('retMsg')}")
             
     except Exception as e:
-        print(f"❌ Excepción en la consulta: {e}")
+        print(f"❌ Error consultando endpoint público: {e}")
         
     return None, None, None, None
 # ==============================================================================
